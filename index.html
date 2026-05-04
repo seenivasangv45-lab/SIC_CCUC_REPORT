@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Report Automation</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0d1117; --surface:#161b22; --surface2:#1c2333;
+  --border:#30363d; --border-subtle:#21262d;
+  --accent:#2563eb; --accent-glow:rgba(37,99,235,0.15);
+  --success:#22c55e; --success-bg:rgba(34,197,94,0.08);
+  --warning:#f59e0b; --warning-bg:rgba(245,158,11,0.08);
+  --error:#ef4444; --error-bg:rgba(239,68,68,0.08);
+  --text:#e6edf3; --text-muted:#7d8590; --text-dim:#484f58;
+  --mono:'DM Mono',monospace; --sans:'DM Sans',sans-serif; --radius:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.6;min-height:100vh;}
+.app{display:grid;grid-template-columns:240px 1fr;grid-template-rows:56px 1fr;min-height:100vh;}
+header{grid-column:1/-1;display:flex;align-items:center;padding:0 24px;border-bottom:1px solid var(--border);background:var(--surface);gap:12px;}
+.logo{width:28px;height:28px;background:var(--accent);border-radius:6px;display:flex;align-items:center;justify-content:center;}
+.logo svg{width:16px;height:16px;fill:#fff;}
+header h1{font-size:15px;font-weight:600;letter-spacing:-0.02em;}
+.version{font-family:var(--mono);font-size:11px;color:var(--text-muted);background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:2px 6px;}
+.spacer{flex:1;}
+.session-badge{font-family:var(--mono);font-size:11px;color:var(--text-dim);}
+aside{border-right:1px solid var(--border);background:var(--surface);padding:20px 0;overflow-y:auto;}
+.nav-section{padding:0 16px 16px;}
+.nav-section-title{font-family:var(--mono);font-size:10px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);padding:0 8px;margin-bottom:6px;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--radius);cursor:pointer;transition:all .15s;color:var(--text-muted);font-size:13px;border:1px solid transparent;}
+.nav-item:hover{background:var(--surface2);color:var(--text);}
+.nav-item.active{background:var(--accent-glow);color:var(--text);border-color:rgba(37,99,235,0.3);}
+.step-num{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:10px;font-weight:500;background:var(--surface2);color:var(--text-dim);border:1px solid var(--border);flex-shrink:0;}
+.nav-item.active .step-num,.nav-item.done .step-num{background:var(--accent);color:#fff;border-color:var(--accent);}
+.nav-item.done .step-num::after{content:'✓';}
+.nav-item.done .step-num span{display:none;}
+.sheet-checklist{padding:0 16px;}
+.sheet-item{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:6px;font-family:var(--mono);font-size:11px;color:var(--text-dim);margin-bottom:2px;}
+.sheet-item.loaded{color:var(--success);}
+.sheet-dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0;}
+main{padding:32px;overflow-y:auto;}
+.step-panel{display:none;}
+.step-panel.active{display:block;}
+.panel-title{font-size:20px;font-weight:600;letter-spacing:-0.03em;margin-bottom:4px;}
+.panel-subtitle{color:var(--text-muted);margin-bottom:24px;font-size:13px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px;}
+.card-title{font-size:13px;font-weight:500;margin-bottom:12px;display:flex;align-items:center;gap:8px;}
+.drop-zone{border:1.5px dashed var(--border);border-radius:var(--radius);padding:36px 24px;text-align:center;cursor:pointer;transition:all .2s;background:transparent;position:relative;}
+.drop-zone:hover,.drop-zone.dragover{border-color:var(--accent);background:var(--accent-glow);}
+.drop-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.drop-icon{font-size:28px;margin-bottom:10px;}
+.drop-label{font-size:13px;color:var(--text-muted);}
+.drop-label strong{color:var(--text);}
+.drop-hint{font-size:11px;color:var(--text-dim);margin-top:6px;font-family:var(--mono);}
+.file-list{margin-top:12px;}
+.file-entry{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:6px;background:var(--surface2);margin-bottom:6px;font-size:12px;}
+.file-entry-name{flex:1;font-family:var(--mono);color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.file-entry-status{font-size:11px;color:var(--text-muted);white-space:nowrap;}
+.file-entry.ok .file-entry-status{color:var(--success);}
+.file-entry.err .file-entry-status{color:var(--error);}
+.file-entry.uploading .file-entry-status{color:var(--accent);}
+.sheet-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;}
+.sheet-card{background:var(--surface2);border:1px solid var(--border-subtle);border-radius:var(--radius);padding:12px;position:relative;}
+.sheet-card.matched{border-color:rgba(34,197,94,0.35);background:rgba(34,197,94,0.05);}
+.sheet-card.missing{border-color:rgba(239,68,68,0.25);opacity:.65;}
+.sheet-card-badge{position:absolute;top:8px;right:8px;font-size:10px;padding:2px 6px;border-radius:4px;font-family:var(--mono);}
+.sheet-card.matched .sheet-card-badge{background:var(--success-bg);color:var(--success);}
+.sheet-card.missing .sheet-card-badge{background:var(--error-bg);color:var(--error);}
+.sheet-card-name{font-family:var(--mono);font-size:11px;font-weight:500;color:var(--text);margin-bottom:4px;padding-right:56px;}
+.sheet-card-source{font-size:11px;color:var(--text-muted);}
+label{display:block;font-size:12px;color:var(--text-muted);margin-bottom:6px;font-family:var(--mono);}
+.date-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
+input[type=date]{width:100%;padding:9px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-family:var(--mono);font-size:13px;outline:none;transition:border-color .15s;}
+input[type=date]:focus{border-color:var(--accent);}
+input[type=date]::-webkit-calendar-picker-indicator{filter:invert(.6);}
+.date-preview{font-family:var(--mono);font-size:11px;color:var(--text-muted);padding:8px 12px;background:var(--surface2);border:1px solid var(--border-subtle);border-radius:6px;margin-top:8px;}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:9px 18px;border-radius:var(--radius);font-family:var(--sans);font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .15s;text-decoration:none;}
+.btn-primary{background:var(--accent);color:#fff;}
+.btn-primary:hover:not(:disabled){background:#3b82f6;}
+.btn-primary:disabled{opacity:.4;cursor:not-allowed;}
+.btn-ghost{background:transparent;color:var(--text-muted);border:1px solid var(--border);}
+.btn-ghost:hover{background:var(--surface2);color:var(--text);}
+.btn-success{background:rgba(34,197,94,.15);color:var(--success);border:1px solid rgba(34,197,94,.3);}
+.btn-success:hover{background:rgba(34,197,94,.25);}
+.btn-row{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap;}
+.status-bar{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;display:flex;align-items:center;gap:12px;margin-bottom:16px;}
+.status-dot{width:8px;height:8px;border-radius:50%;background:var(--text-dim);flex-shrink:0;}
+.status-dot.processing{background:var(--accent);animation:pulse 1s infinite;}
+.status-dot.success{background:var(--success);}
+.status-dot.error{background:var(--error);}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+.result-card{background:var(--surface);border:1px solid rgba(34,197,94,.3);border-radius:var(--radius);padding:24px;margin-top:16px;display:none;}
+.result-card.show{display:block;}
+.result-title{font-size:16px;font-weight:600;margin-bottom:6px;color:var(--success);}
+.result-meta{font-family:var(--mono);font-size:11px;color:var(--text-muted);margin-bottom:16px;}
+.result-stats{display:flex;gap:24px;margin-bottom:20px;}
+.stat-value{font-size:24px;font-weight:600;letter-spacing:-0.04em;}
+.stat-label{font-size:11px;color:var(--text-muted);font-family:var(--mono);}
+.log-box{background:var(--bg);border:1px solid var(--border-subtle);border-radius:6px;padding:12px;font-family:var(--mono);font-size:11px;color:var(--text-muted);max-height:160px;overflow-y:auto;margin-top:12px;display:none;}
+.log-box.show{display:block;}
+.log-line{margin-bottom:3px;}
+.log-line.warn{color:var(--warning);}
+.log-line.err{color:var(--error);}
+.log-line.ok{color:var(--success);}
+.info-box{padding:10px 14px;border-radius:6px;font-size:12px;margin-bottom:12px;display:flex;gap:10px;align-items:flex-start;}
+.info-box.info{background:var(--accent-glow);border:1px solid rgba(37,99,235,.2);color:#93c5fd;}
+.info-box.warn{background:var(--warning-bg);border:1px solid rgba(245,158,11,.2);color:#fbbf24;}
+.info-box.error{background:var(--error-bg);border:1px solid rgba(239,68,68,.2);color:#fca5a5;}
+.summary-table{font-family:var(--mono);font-size:12px;color:var(--text-muted);line-height:2.2;}
+.summary-row{display:flex;gap:12px;}
+.summary-lbl{min-width:150px;}
+.summary-val{color:var(--text);}
+.toast{position:fixed;bottom:24px;right:24px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;font-size:13px;max-width:340px;box-shadow:0 8px 32px rgba(0,0,0,.5);transform:translateY(80px);opacity:0;transition:all .25s;pointer-events:none;z-index:999;}
+.toast.show{transform:translateY(0);opacity:1;}
+.toast.success{border-color:rgba(34,197,94,.5);}
+.toast.error{border-color:rgba(239,68,68,.5);}
+.toast.warning{border-color:rgba(245,158,11,.5);}
+hr.div{border:none;border-top:1px solid var(--border-subtle);margin:0 16px 16px;}
+::-webkit-scrollbar{width:6px;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Header -->
+  <header>
+    <div class="logo">
+      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm-1 7V3.5L18.5 9H13zm-2 8l-3-3 1.41-1.41L10 14.17l4.59-4.58L16 11l-6 6z"/></svg>
+    </div>
+    <h1>Report Automation</h1>
+    <span class="version">v4</span>
+    <div class="spacer"></div>
+    <span class="session-badge" id="sessionBadge">connecting…</span>
+  </header>
+
+  <!-- Sidebar -->
+  <aside>
+    <div class="nav-section">
+      <div class="nav-section-title">Steps</div>
+      <div class="nav-item active" data-step="0" onclick="goStep(0)">
+        <div class="step-num"><span>1</span></div>Upload Files
+      </div>
+      <div class="nav-item" data-step="1" onclick="goStep(1)">
+        <div class="step-num"><span>2</span></div>Review Sheets
+      </div>
+      <div class="nav-item" data-step="2" onclick="goStep(2)">
+        <div class="step-num"><span>3</span></div>Select Dates
+      </div>
+      <div class="nav-item" data-step="3" onclick="goStep(3)">
+        <div class="step-num"><span>4</span></div>Generate Report
+      </div>
+    </div>
+    <hr class="div">
+    <div class="nav-section">
+      <div class="nav-section-title">Sheet Status</div>
+      <div class="sheet-checklist" id="sidebarChecklist"></div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main>
+
+    <!-- Step 0: Upload -->
+    <div class="step-panel active" id="panel-0">
+      <div class="panel-title">Upload Raw Data</div>
+      <div class="panel-subtitle">Select your Excel files. Sheets are matched automatically by their column headers.</div>
+
+      <div id="sessionAlert"></div>
+
+      <div class="info-box info">
+        <span>ℹ</span>
+        <span>Sheet names don't matter — the app matches by column signatures. One combined file or separate files both work.</span>
+      </div>
+
+      <div class="card">
+        <div class="card-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+          Select files to upload
+        </div>
+        <div class="drop-zone" id="dropZone">
+          <input type="file" id="fileInput" multiple accept=".xlsx,.xls">
+          <div class="drop-icon">📂</div>
+          <div class="drop-label"><strong>Click to browse</strong> or drag &amp; drop</div>
+          <div class="drop-hint">.xlsx / .xls &nbsp;·&nbsp; Multiple files supported</div>
+        </div>
+        <div class="file-list" id="fileList"></div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" id="nextToReview" onclick="goStep(1)" disabled>
+          Review Detected Sheets →
+        </button>
+        <button class="btn btn-ghost" onclick="doReset()">Reset Session</button>
+      </div>
+    </div>
+
+    <!-- Step 1: Review -->
+    <div class="step-panel" id="panel-1">
+      <div class="panel-title">Review Sheet Detection</div>
+      <div class="panel-subtitle">Green = matched from your uploaded files. Red = not found yet.</div>
+
+      <div id="missingWarning" class="info-box warn" style="display:none">
+        <span>⚠</span>
+        <div><strong>Some sheets are missing.</strong> Go back and upload the remaining files. You can still proceed — missing data will be zero-filled.</div>
+      </div>
+
+      <div class="sheet-grid" id="sheetGrid"></div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="goStep(2)">Set Date Range →</button>
+        <button class="btn btn-ghost" onclick="goStep(0)">← Back</button>
+      </div>
+    </div>
+
+    <!-- Step 2: Dates -->
+    <div class="step-panel" id="panel-2">
+      <div class="panel-title">Select Date Range</div>
+      <div class="panel-subtitle">Report is generated for every calendar day in this range (inclusive).</div>
+      <div class="card">
+        <div class="date-row">
+          <div>
+            <label for="dateStart">START DATE</label>
+            <input type="date" id="dateStart" oninput="updateDatePreview()">
+          </div>
+          <div>
+            <label for="dateEnd">END DATE (optional — defaults to start)</label>
+            <input type="date" id="dateEnd" oninput="updateDatePreview()">
+          </div>
+        </div>
+        <div class="date-preview" id="datePreview">Select a start date…</div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="nextToGenerate" onclick="goStep(3)" disabled>Generate Report →</button>
+        <button class="btn btn-ghost" onclick="goStep(1)">← Back</button>
+      </div>
+    </div>
+
+    <!-- Step 3: Generate -->
+    <div class="step-panel" id="panel-3">
+      <div class="panel-title">Generate Report</div>
+      <div class="panel-subtitle">Review settings then click Run.</div>
+
+      <div class="card">
+        <div class="card-title">Run Summary</div>
+        <div class="summary-table" id="summaryContent"></div>
+      </div>
+
+      <div class="status-bar" id="statusBar" style="display:none">
+        <div class="status-dot" id="statusDot"></div>
+        <div id="statusText">Processing…</div>
+      </div>
+
+      <div class="result-card" id="resultCard">
+        <div class="result-title">✓ Report Generated</div>
+        <div class="result-meta" id="resultMeta"></div>
+        <div class="result-stats" id="resultStats"></div>
+        <a class="btn btn-success" id="downloadBtn" href="#" download>↓ Download Report</a>
+        <button class="btn btn-ghost" style="margin-left:10px" onclick="startOver()">New Report</button>
+        <div class="log-box" id="logBox"></div>
+        <button class="btn btn-ghost" style="margin-top:10px;font-size:11px"
+          onclick="document.getElementById('logBox').classList.toggle('show')">Show / hide log</button>
+      </div>
+
+      <div class="btn-row" id="generateBtnRow">
+        <button class="btn btn-primary" onclick="runGenerate()">▶ Run Report Automation</button>
+        <button class="btn btn-ghost" onclick="goStep(2)">← Back</button>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ================================================================
+   Config
+================================================================ */
+const REQUIRED_SHEETS = [
+  'Bank_Statement_R','Pay_06_R','Pay_41_R','Age_24_R',
+  'Fin_25_R','Waystar_R','Rejected','Cnt_27'
+];
+
+let SESSION_ID  = null;
+let sheetState  = {};   // { canonical_name: info }
+let currentStep = 0;
+
+/* ================================================================
+   Toast
+================================================================ */
+let _tt = null;
+function toast(msg, type='') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show ' + type;
+  clearTimeout(_tt);
+  _tt = setTimeout(() => el.classList.remove('show'), 4500);
+}
+
+/* ================================================================
+   Session init
+================================================================ */
+async function initSession() {
+  const badge = document.getElementById('sessionBadge');
+  const alertBox = document.getElementById('sessionAlert');
+  badge.textContent = 'connecting…';
+  alertBox.innerHTML = '';
+
+  // Try reusing existing session
+  const saved = sessionStorage.getItem('report_sid');
+  if (saved) {
+    try {
+      const r = await fetch('/api/session/' + saved + '/sheets');
+      if (r.ok) {
+        const d = await r.json();
+        SESSION_ID = saved;
+        sheetState = d.sheets || {};
+        badge.textContent = 'session: ' + SESSION_ID.slice(0,8);
+        buildSidebarChecklist();
+        updateSidebarChecklist();
+        if (Object.keys(sheetState).length > 0)
+          document.getElementById('nextToReview').disabled = false;
+        return;
+      }
+    } catch(_) {}
+    sessionStorage.removeItem('report_sid');
+  }
+
+  // Create new session
+  try {
+    const r = await fetch('/api/session', { method:'POST' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const d = await r.json();
+    SESSION_ID = d.session_id;
+    sessionStorage.setItem('report_sid', SESSION_ID);
+    badge.textContent = 'session: ' + SESSION_ID.slice(0,8);
+    buildSidebarChecklist();
+  } catch(e) {
+    badge.textContent = 'error';
+    alertBox.innerHTML =
+      '<div class="info-box error"><span>✗</span><span>Cannot reach server: ' +
+      e.message + '. Ensure Flask is running on port 5050, then refresh.</span></div>';
+    toast('Server unreachable — see message above', 'error');
+  }
+}
+
+/* ================================================================
+   Navigation
+================================================================ */
+function goStep(n) {
+  document.querySelectorAll('.step-panel').forEach((p,i) => p.classList.toggle('active', i===n));
+  document.querySelectorAll('.nav-item[data-step]').forEach(el => {
+    const i = parseInt(el.dataset.step);
+    el.classList.remove('active','done');
+    if (i < n) el.classList.add('done');
+    if (i === n) el.classList.add('active');
+  });
+  currentStep = n;
+  if (n === 1) renderSheetGrid();
+  if (n === 3) renderSummary();
+}
+
+/* ================================================================
+   File upload
+================================================================ */
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  handleFiles(e.dataTransfer.files);
+});
+fileInput.addEventListener('change', () => {
+  if (fileInput.files.length) handleFiles(fileInput.files);
+});
+
+async function handleFiles(files) {
+  if (!files || !files.length) return;
+
+  if (!SESSION_ID) {
+    toast('Session not ready yet. Wait a moment and try again.', 'error');
+    return;
+  }
+
+  const fileArr = Array.from(files);
+  const list = document.getElementById('fileList');
+
+  // Show uploading rows immediately
+  fileArr.forEach(f => {
+    let row = document.getElementById('fe__' + CSS.escape(f.name));
+    if (!row) {
+      row = document.createElement('div');
+      row.id = 'fe__' + f.name;
+      list.appendChild(row);
+    }
+    row.className = 'file-entry uploading';
+    row.innerHTML =
+      '<span class="file-entry-name">📄 ' + f.name + '</span>' +
+      '<span class="file-entry-status">⏳ Uploading…</span>';
+  });
+
+  // Build FormData
+  const fd = new FormData();
+  fileArr.forEach(f => fd.append('files', f));
+
+  try {
+    const resp = await fetch('/api/session/' + SESSION_ID + '/upload', {
+      method: 'POST',
+      body: fd   // NO Content-Type header — browser sets multipart boundary automatically
+    });
+
+    let data;
+    try { data = await resp.json(); }
+    catch(_) { throw new Error('Server returned non-JSON (status ' + resp.status + ')'); }
+
+    if (!resp.ok) throw new Error(data.error || 'HTTP ' + resp.status);
+
+    // Update rows
+    (data.results || []).forEach(res => {
+      const row = document.getElementById('fe__' + res.filename);
+      if (!row) return;
+      if (res.error) {
+        row.className = 'file-entry err';
+        row.querySelector('.file-entry-status').textContent = '✗ ' + res.error;
+      } else {
+        const n = Object.keys(res.detected || {}).length;
+        row.className = 'file-entry ok';
+        row.querySelector('.file-entry-status').textContent =
+          n > 0 ? '✓ ' + n + ' sheet' + (n!==1?'s':'') + ' detected'
+                : '⚠ No matching sheets found';
+      }
+    });
+
+    // Merge server sheet state
+    sheetState = data.session_sheets || {};
+    updateSidebarChecklist();
+
+    const total = Object.keys(sheetState).length;
+    document.getElementById('nextToReview').disabled = total === 0;
+
+    if (total > 0)
+      toast('Detected ' + total + ' sheet' + (total!==1?'s':'') + ' — click "Review Detected Sheets"', 'success');
+    else
+      toast('No matching sheets found in these files. Check column headers match expected format.', 'warning');
+
+  } catch(e) {
+    fileArr.forEach(f => {
+      const row = document.getElementById('fe__' + f.name);
+      if (row) {
+        row.className = 'file-entry err';
+        row.querySelector('.file-entry-status').textContent = '✗ Error: ' + e.message;
+      }
+    });
+    toast('Upload failed: ' + e.message, 'error');
+    console.error('Upload error:', e);
+  } finally {
+    fileInput.value = ''; // allow re-selecting same file
+  }
+}
+
+/* ================================================================
+   Sheet grid (Step 1)
+================================================================ */
+function renderSheetGrid() {
+  const grid = document.getElementById('sheetGrid');
+  grid.innerHTML = '';
+  let anyMissing = false;
+
+  REQUIRED_SHEETS.forEach(name => {
+    const info = sheetState[name];
+    const matched = !!info;
+    if (!matched) anyMissing = true;
+
+    const card = document.createElement('div');
+    card.className = 'sheet-card ' + (matched ? 'matched' : 'missing');
+    card.innerHTML =
+      '<div class="sheet-card-badge">' + (matched ? '✓ found' : '✗ missing') + '</div>' +
+      '<div class="sheet-card-name">' + name + '</div>' +
+      '<div class="sheet-card-source">' + (matched
+        ? '<span style="color:var(--text)">' + (info.original_filename||'?') + '</span>' +
+          '<br><span style="color:var(--text-dim);font-size:10px">' + (info.source_sheet||'') + '</span>'
+        : '<span style="color:var(--text-dim)">not uploaded</span>') + '</div>';
+    grid.appendChild(card);
+  });
+
+  document.getElementById('missingWarning').style.display = anyMissing ? 'flex' : 'none';
+}
+
+/* ================================================================
+   Sidebar checklist
+================================================================ */
+function buildSidebarChecklist() {
+  document.getElementById('sidebarChecklist').innerHTML = REQUIRED_SHEETS.map(s =>
+    '<div class="sheet-item missing" id="sc__' + s + '">' +
+    '<div class="sheet-dot"></div>' +
+    '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px">' + s + '</span>' +
+    '</div>'
+  ).join('');
+}
+
+function updateSidebarChecklist() {
+  REQUIRED_SHEETS.forEach(name => {
+    const el = document.getElementById('sc__' + name);
+    if (el) el.className = 'sheet-item ' + (sheetState[name] ? 'loaded' : 'missing');
+  });
+}
+
+/* ================================================================
+   Date range (Step 2)
+================================================================ */
+function updateDatePreview() {
+  const sv = document.getElementById('dateStart').value;
+  const ev = document.getElementById('dateEnd').value;
+  const preview = document.getElementById('datePreview');
+  const btn = document.getElementById('nextToGenerate');
+
+  if (!sv) { preview.textContent = 'Select a start date…'; btn.disabled = true; return; }
+
+  const start = new Date(sv + 'T00:00:00');
+  const end   = ev ? new Date(ev + 'T00:00:00') : start;
+
+  if (end < start) {
+    preview.textContent = '⚠ End date is before start date';
+    btn.disabled = true;
+    return;
+  }
+
+  const days = Math.round((end - start) / 86400000) + 1;
+  preview.textContent = fmtDate(start) + ' → ' + fmtDate(end) + '  ·  ' + days + ' day' + (days!==1?'s':'');
+  btn.disabled = false;
+}
+
+function fmtDate(d) {
+  return (d.getMonth()+1) + '/' + d.getDate() + '/' + d.getFullYear();
+}
+
+/* ================================================================
+   Summary (Step 3)
+================================================================ */
+function renderSummary() {
+  const sv = document.getElementById('dateStart').value;
+  const ev = document.getElementById('dateEnd').value || sv;
+  if (!sv) return;
+  const start = new Date(sv + 'T00:00:00');
+  const end   = new Date(ev + 'T00:00:00');
+  const days  = Math.round((end - start) / 86400000) + 1;
+  const loaded = Object.keys(sheetState).length;
+
+  document.getElementById('summaryContent').innerHTML =
+    row('Date range', fmtDate(start) + ' → ' + fmtDate(end)) +
+    row('Days', days) +
+    row('Sheets loaded', loaded + ' / ' + REQUIRED_SHEETS.length) +
+    row('Session', SESSION_ID ? SESSION_ID.slice(0,8) : '—');
+}
+function row(l,v){ return '<div class="summary-row"><span class="summary-lbl">'+l+'</span><span class="summary-val">'+v+'</span></div>'; }
+
+/* ================================================================
+   Generate (Step 3)
+================================================================ */
+async function runGenerate() {
+  const sv = document.getElementById('dateStart').value;
+  const ev = document.getElementById('dateEnd').value || sv;
+
+  document.getElementById('generateBtnRow').style.display = 'none';
+  const bar = document.getElementById('statusBar');
+  bar.style.display = 'flex';
+  const dot = document.getElementById('statusDot');
+  dot.className = 'status-dot processing';
+  document.getElementById('statusText').textContent = 'Computing metrics…';
+
+  const toMDY = v => { const [y,m,d] = v.split('-'); return parseInt(m)+'/'+parseInt(d)+'/'+y; };
+
+  try {
+    const r = await fetch('/api/session/' + SESSION_ID + '/process', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date_start: toMDY(sv), date_end: toMDY(ev) })
+    });
+    const d = await r.json();
+
+    if (!r.ok || d.error) {
+      dot.className = 'status-dot error';
+      document.getElementById('statusText').textContent = 'Error: ' + (d.error || 'Unknown');
+      document.getElementById('generateBtnRow').style.display = 'flex';
+      toast(d.error || 'Processing failed', 'error');
+      return;
+    }
+
+    dot.className = 'status-dot success';
+    document.getElementById('statusText').textContent = '✓ Complete';
+
+    const rc = document.getElementById('resultCard');
+    rc.classList.add('show');
+    document.getElementById('resultMeta').textContent = d.output_file;
+    document.getElementById('resultStats').innerHTML =
+      stat(d.dates_processed, 'dates updated') +
+      stat(d.dates_skipped?.length||0, 'skipped') +
+      stat(d.warnings?.length||0, 'warnings');
+
+    document.getElementById('downloadBtn').href = d.download_url;
+    document.getElementById('downloadBtn').download = d.output_file;
+
+    const logs = [
+      ...(d.dates_skipped||[]).map(s => ({t:'Skipped: '+s+' (not in template)',c:'warn'})),
+      ...(d.warnings||[]).map(w => ({t:w,c:'warn'})),
+      {t:'Output: '+d.output_file, c:'ok'},
+    ];
+    document.getElementById('logBox').innerHTML =
+      logs.map(l => '<div class="log-line '+l.c+'">'+l.t+'</div>').join('');
+
+    toast('Report ready — click Download!', 'success');
+  } catch(e) {
+    dot.className = 'status-dot error';
+    document.getElementById('statusText').textContent = 'Network error: ' + e.message;
+    document.getElementById('generateBtnRow').style.display = 'flex';
+    toast('Network error: ' + e.message, 'error');
+  }
+}
+function stat(v,l){return '<div class="stat"><div class="stat-value">'+v+'</div><div class="stat-label">'+l+'</div></div>';}
+
+function startOver() {
+  document.getElementById('resultCard').classList.remove('show');
+  document.getElementById('statusBar').style.display = 'none';
+  document.getElementById('generateBtnRow').style.display = 'flex';
+  goStep(0);
+}
+
+async function doReset() {
+  if (!SESSION_ID) return;
+  try { await fetch('/api/session/' + SESSION_ID + '/reset', { method:'POST' }); } catch(_){}
+  sessionStorage.removeItem('report_sid');
+  SESSION_ID = null;
+  sheetState = {};
+  document.getElementById('fileList').innerHTML = '';
+  document.getElementById('nextToReview').disabled = true;
+  await initSession();
+  toast('Session reset', 'success');
+  goStep(0);
+}
+
+/* ================================================================
+   Boot
+================================================================ */
+initSession();
+</script>
+</body>
+</html>
